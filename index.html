@@ -17,6 +17,20 @@
       font-family: Arial, sans-serif;
     }
 
+      .district-label {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      color: #000;
+      font-size: 10px;
+      font-weight: bold;
+      text-shadow:
+          1px 1px 2px #fff,
+          -1px -1px 2px #fff,
+          1px -1px 2px #fff,
+          -1px 1px 2px #fff;
+      }
+
     .info-box {
       position: absolute;
       top: 16px;
@@ -148,21 +162,26 @@
       .then(data => {
         geojsonLayer = L.geoJSON(data, {
           style: defaultStyle,
-          onEachFeature: function(feature, layer) {
-            const p = feature.properties || {};
-            const amp = getAmpName(p);
-            const province = getProvinceName(p);
-            const area = getArea(p);
-
-            districtLayers.push({ amp, province, layer });
-
-            layer.bindTooltip(`อ.${amp} จ.${province}`, { sticky: true });
-
-            layer.bindPopup(`
-              <b>อำเภอ${amp}</b><br>
-              จังหวัด${province}<br>
-              ${area ? 'พื้นที่: ' + Number(area).toLocaleString() + ' ตร.กม.' : ''}
-            `);
+          function onEachFeature(feature, layer) {
+          
+              const district = feature.properties.amp_th;
+              const province = feature.properties.pro_th;
+          
+              layer.bindPopup(`
+                  <b>อำเภอ${district}</b><br>
+                  จังหวัด${province}
+              `);
+          
+              // Label แสดงตลอด
+              layer.bindTooltip(
+                  district,
+                  {
+                      permanent: true,
+                      direction: "center",
+                      className: "district-label"
+                  }
+              );
+          }
 
             layer.on('mouseover', function() {
               layer.setStyle(hoverStyle);
