@@ -22,20 +22,20 @@
       left: 15px;
       z-index: 1000;
       background: white;
-      width: 350px;
+      width: 285px;
       max-width: calc(100vw - 30px);
-      padding: 16px;
-      border-radius: 14px;
+      padding: 12px;
+      border-radius: 12px;
       box-shadow: 0 4px 18px rgba(0,0,0,.2);
     }
 
     .panel h2 {
-      margin: 0 0 8px;
-      font-size: 20px;
+      margin: 0 0 6px;
+      font-size: 17px;
     }
 
     .note {
-      font-size: 13px;
+      font-size: 12px;
       color: #374151;
       line-height: 1.5;
     }
@@ -44,14 +44,14 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 0;
+      padding: 6px 0;
       border-bottom: 1px solid #eee;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     .color-box {
-      width: 16px;
-      height: 16px;
+      width: 14px;
+      height: 14px;
       border-radius: 4px;
       flex: 0 0 auto;
     }
@@ -59,8 +59,8 @@
     .actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      margin: 10px 0;
+      gap: 8px;
+      margin: 8px 0;
       font-size: 13px;
     }
 
@@ -104,25 +104,8 @@
       font-size: 12px;
       color: #4b5563;
       background: #f3f4f6;
-      padding: 7px 8px;
+      padding: 6px 7px;
       border-radius: 8px;
-    }
-
-    @media print {
-      @page {
-        size: A2 landscape;
-        margin: 0;
-      }
-
-      html, body, #map {
-        width: 100%;
-        height: 100%;
-      }
-
-      .panel,
-      .leaflet-control-container {
-        display: none !important;
-      }
     }
   </style>
 </head>
@@ -132,15 +115,13 @@
     <h2>แผนที่ Hub 8 จุด</h2>
     <div class="note">
       รัศมีแต่ละจุด: <b>80 กม.</b><br>
-      วงกลม Hub โปร่งแสง: <b>20%</b><br>
-      Export A2 จะโฟกัสเฉพาะ Hub ที่เลือกอยู่
+      วงกลม Hub โปร่งแสง: <b>5%</b><br>
     </div>
 
     <div class="actions">
       <a onclick="selectAll()">เลือกทั้งหมด</a>
       <a onclick="clearAll()">ยกเลิกทั้งหมด</a>
       <a onclick="fitSelectedHubs()">โฟกัส Hub ที่เลือก</a>
-      <a onclick="preparePrintA2()">Export A2</a>
     </div>
 
     <div id="hubList"></div>
@@ -344,26 +325,6 @@
       });
 
       statusEl.innerText = `โฟกัส Hub ที่เลือก: ${getSelectedHubs().length} จุด`;
-    }
-
-    function preparePrintA2() {
-      const selectedBounds = getSelectedHubBounds();
-      if (!selectedBounds) {
-        alert('กรุณาเลือก Hub อย่างน้อย 1 จุดก่อน Export');
-        return;
-      }
-
-      map.fitBounds(selectedBounds, {
-        padding: [40, 40],
-        animate: false
-      });
-
-      statusEl.innerText = 'กำลังเตรียม Export A2...';
-
-      setTimeout(() => {
-        map.invalidateSize();
-        window.print();
-      }, 800);
     }
 
     const initialBounds = L.latLngBounds(hubs.map(h => [h.lat, h.lng]));
