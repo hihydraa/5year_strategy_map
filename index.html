@@ -82,14 +82,21 @@
       box-shadow: 0 1px 4px rgba(0,0,0,.25);
     }
 
-    .leaflet-tooltip.district-tooltip {
-      background: rgba(255,255,255,0.9);
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      color: #111827;
-      font-weight: 1000;
-      font-size: 18px;
-      padding: 2px 6px;
+    .district-label {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+    
+      color: #000 !important;
+    
+      font-size: 14px !important;   /* ปรับขนาดตรงนี้ */
+      font-weight: 900 !important;
+    
+      text-shadow:
+        2px 2px 3px white,
+        -2px -2px 3px white,
+        2px -2px 3px white,
+        -2px 2px 3px white;
     }
 
     #status {
@@ -178,10 +185,11 @@
             const amp = p.amp_th || p.AMPHOE_T || p.district_th || p.name_th || '';
             const province = p.pro_th || p.PROVINCE_T || p.province_th || '';
 
-            layer.bindTooltip(`อ.${amp} จ.${province}`, {
-              sticky: true,
-              className: 'district-tooltip'
-            });
+          layer.bindTooltip(amp, {
+            permanent: true,
+            direction: "center",
+            className: "district-label"
+          });
 
             layer.bindPopup(`
               <b>อำเภอ${amp}</b><br>
