@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>แผนที่ Highlight ภาคอีสาน</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .panel {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 999;
+      width: 320px;
+      max-width: calc(100vw - 28px);
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 6px 22px rgba(0,0,0,0.18);
+      box-sizing: border-box;
+    }
+
+    .panel h1 {
+      margin: 0 0 6px 0;
+      font-size: 18px;
+      color: #111827;
+    }
+
+    .panel p {
+      margin: 4px 0;
+      font-size: 13px;
+      color: #4b5563;
+      line-height: 1.45;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    input {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      font-size: 14px;
+      box-sizing: border-box;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+    }
+
+    button {
+      padding: 9px 12px;
+      border: 0;
+      border-radius: 10px;
+      background: #111827;
+      color: white;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      background: #374151;
+    }
+
+    .status {
+      margin-top: 10px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      background: #f3f4f6;
+      font-size: 13px;
+      color: #374151;
+    }
+
+    .legend {
+      position: absolute;
+      right: 14px;
+      bottom: 24px;
+      z-index: 999;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.16);
+      font-size: 13px;
+      color: #374151;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 5px 0;
+    }
+
+    .box {
+      width: 18px;
+      height: 12px;
+      border-radius: 3px;
+      border: 1px solid #555;
+    }
+
+    .esan-box { background: #f97316; }
+    .other-box { background: #e5e7eb; }
+    .selected-box { background: #2563eb; }
+
+    .leaflet-tooltip {
+      font-weight: 600;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="panel">
+    <h1>แผนที่ Highlight ภาคอีสาน</h1>
+    <p>แสดงขอบเขตอำเภอทั้งหมดในประเทศไทย และเน้นสีเฉพาะอำเภอในภาคอีสาน</p>
+    <div class="search-row">
+      <input id="searchInput" type="text" placeholder="ค้นหาอำเภอ/จังหวัด เช่น ยางตลาด, กาฬสินธุ์" />
+      <button id="resetBtn">รีเซ็ต</button>
+    </div>
+    <div id="status" class="status">กำลังโหลดแผนที่...</div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="box esan-box"></span> ภาคอีสาน</div>
+    <div class="legend-item"><span class="box other-box"></span> พื้นที่อื่น</div>
+    <div class="legend-item"><span class="box selected-box"></span> ผลการค้นหา</div>
+  </div>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // วางไฟล์ districts.geojson ไว้ในโฟลเดอร์เดียวกับ index.html บน GitHub
+    const GEOJSON_URL = './districts.geojson';
+
+    const ESAN_PROVINCES = new Set([
+      'กาฬสินธุ์',
+      'ขอนแก่น',
+      'ชัยภูมิ',
+      'นครพนม',
+      'นครราชสีมา',
+      'บึงกาฬ',
+      'บุรีรัมย์',
+      'มหาสารคาม',
+      'มุกดาหาร',
+      'ยโสธร',
+      'ร้อยเอ็ด',
+      'เลย',
+      'ศรีสะเกษ',
+      'สกลนคร',
+      'สุรินทร์',
+      'หนองคาย',
+      'หนองบัวลำภู',
+      'อำนาจเจริญ',
+      'อุดรธานี',
+      'อุบลราชธานี'
+    ]);
+
+    const map = L.map('map', {
+      zoomControl: true
+    }).setView([15.5, 103.5], 7);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let districtLayer;
+    let allDistricts = [];
+    const statusEl = document.getElementById('status');
+    const searchInput = document.getElementById('searchInput');
+    const resetBtn = document.getElementById('resetBtn');
+
+    function isEsan(feature) {
+      const p = feature.properties || {};
+      return p.reg_royin === 'Northeast' || p.reg_nesdb === 'Northeast' || ESAN_PROVINCES.has(p.pro_th);
+    }
+
+    function getStyle(feature) {
+      if (isEsan(feature)) {
+        return {
+          color: '#7c2d12',
+          weight: 0.9,
+          fillColor: '#f97316',
+          fillOpacity: 0.68
+        };
+      }
+
+      return {
+        color: '#9ca3af',
+        weight: 0.45,
+        fillColor: '#e5e7eb',
+        fillOpacity: 0.28
+      };
+    }
+
+    function selectedStyle() {
+      return {
+        color: '#1d4ed8',
+        weight: 2.6,
+        fillColor: '#2563eb',
+        fillOpacity: 0.82
+      };
+    }
+
+    function hoverStyle() {
+      return {
+        color: '#111827',
+        weight: 2,
+        fillOpacity: 0.85
+      };
+    }
+
+    function normalizeText(text) {
+      return String(text || '').trim().toLowerCase();
+    }
+
+    function updateStatus() {
+      const total = allDistricts.length;
+      const esan = allDistricts.filter(item => item.isEsan).length;
+      statusEl.textContent = `โหลดสำเร็จ: ทั้งหมด ${total.toLocaleString()} อำเภอ | ภาคอีสาน ${esan.toLocaleString()} อำเภอ`;
+    }
+
+    fetch(GEOJSON_URL)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('ไม่พบไฟล์ districts.geojson');
+        }
+        return response.json();
+      })
+      .then(data => {
+        districtLayer = L.geoJSON(data, {
+          style: getStyle,
+          onEachFeature: (feature, layer) => {
+            const p = feature.properties || {};
+            const amp = p.amp_th || '-';
+            const province = p.pro_th || '-';
+            const region = isEsan(feature) ? 'ภาคอีสาน' : 'พื้นที่อื่น';
+
+            layer.bindTooltip(`อ.${amp} จ.${province}`, {
+              sticky: true,
+              direction: 'top'
+            });
+
+            layer.bindPopup(`
+              <b>อำเภอ${amp}</b><br>
+              จังหวัด${province}<br>
+              ภูมิภาค: ${region}<br>
+              รหัสอำเภอ: ${p.amp_code || '-'}<br>
+              พื้นที่: ${p.area_sqkm ? Number(p.area_sqkm).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '-'} ตร.กม.
+            `);
+
+            layer.on('mouseover', () => layer.setStyle(hoverStyle()));
+            layer.on('mouseout', () => districtLayer.resetStyle(layer));
+            layer.on('click', () => {
+              map.fitBounds(layer.getBounds(), { padding: [40, 40] });
+              layer.openPopup();
+            });
+
+            allDistricts.push({
+              amphoe: amp,
+              province,
+              isEsan: isEsan(feature),
+              layer
+            });
+          }
+        }).addTo(map);
+
+        const esanLayers = allDistricts.filter(item => item.isEsan).map(item => item.layer);
+        if (esanLayers.length > 0) {
+          map.fitBounds(L.featureGroup(esanLayers).getBounds(), { padding: [25, 25] });
+        } else {
+          map.fitBounds(districtLayer.getBounds(), { padding: [25, 25] });
+        }
+
+        updateStatus();
+      })
+      .catch(error => {
+        console.error(error);
+        statusEl.innerHTML = 'โหลดไฟล์ไม่สำเร็จ: กรุณาวางไฟล์ <b>districts.geojson</b> ไว้โฟลเดอร์เดียวกับ index.html';
+      });
+
+    searchInput.addEventListener('input', () => {
+      if (!districtLayer) return;
+
+      const keyword = normalizeText(searchInput.value);
+      districtLayer.eachLayer(layer => districtLayer.resetStyle(layer));
+
+      if (!keyword) {
+        updateStatus();
+        return;
+      }
+
+      const found = allDistricts.filter(item =>
+        normalizeText(item.amphoe).includes(keyword) ||
+        normalizeText(item.province).includes(keyword)
+      );
+
+      found.forEach(item => item.layer.setStyle(selectedStyle()));
+
+      if (found.length > 0) {
+        map.fitBounds(L.featureGroup(found.map(item => item.layer)).getBounds(), { padding: [40, 40] });
+        statusEl.textContent = `พบ ${found.length.toLocaleString()} รายการ จากคำค้นหา “${searchInput.value}”`;
+      } else {
+        statusEl.textContent = `ไม่พบข้อมูลจากคำค้นหา “${searchInput.value}”`;
+      }
+    });
+
+    resetBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      if (districtLayer) {
+        districtLayer.eachLayer(layer => districtLayer.resetStyle(layer));
+        const esanLayers = allDistricts.filter(item => item.isEsan).map(item => item.layer);
+        map.fitBounds(L.featureGroup(esanLayers).getBounds(), { padding: [25, 25] });
+      }
+      updateStatus();
+    });
+  </script>
+</body>
+</html>
